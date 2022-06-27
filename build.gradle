@@ -103,9 +103,9 @@ task packageMyApp(type: PackageTask, dependsOn: fatJar) {
         exeCreationTool = WindowsExeCreationTool.winrun4j
     }
     macConfig {
-        appId = "com.mandirisekuritas.most.macos"
+        appId = "com.kevin.desktop"
         generateDmg = true
         generatePkg = true
-        developerId = "Mandiri Sekuritas, PT (8YFZ2N3JSC)"
+        developerId = "Kevin Xu Tech"
     }
 }
