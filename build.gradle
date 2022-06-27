@@ -1,3 +1,19 @@
+import io.github.fvarrui.javapackager.gradle.PackageTask
+import io.github.fvarrui.javapackager.model.Platform
+import io.github.fvarrui.javapackager.model.WindowsExeCreationTool
+
+buildscript {
+    def currentPlatFormFlag = "mac"
+    def javaPackagerVersion = "1.6.3"
+    if (currentPlatFormFlag == "window") {
+        //the library can't match JVM location on 1.6.3, and can't macOS signature on 1.6.4
+        javaPackagerVersion = "1.6.4"
+    }
+    dependencies {
+        classpath "io.github.fvarrui:javapackager:$javaPackagerVersion"
+    }
+}
+
 plugins {
     id 'java'
     id 'application'
@@ -6,6 +22,7 @@ plugins {
     id 'org.beryx.jlink' version '2.24.1'
 }
 
+apply plugin: 'io.github.fvarrui.javapackager.plugin'
 group 'com.kevin'
 version '1.0-SNAPSHOT'
 
@@ -26,7 +43,7 @@ tasks.withType(JavaCompile) {
 
 application {
     mainModule = 'com.kevin.javafxdemo2'
-    mainClass = 'com.kevin.javafxdemo2.HelloApplication'
+    mainClass = 'com.kevin.javafxdemo2.HelloApplicationKt'
 }
 
 [compileKotlin, compileTestKotlin].forEach {
@@ -40,24 +57,55 @@ javafx {
     modules = ['javafx.controls', 'javafx.fxml']
 }
 
-dependencies {
-
-    testImplementation("org.junit.jupiter:junit-jupiter-api:${junitVersion}")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:${junitVersion}")
-}
-
-test {
-    useJUnitPlatform()
-}
-
-jlink {
-    imageZip = project.file("${buildDir}/distributions/app-${javafx.platform.classifier}.zip")
-    options = ['--strip-debug', '--compress', '2', '--no-header-files', '--no-man-pages']
-    launcher {
-        name = 'app'
+task fatJar(type: Jar) {
+    archiveClassifier = 'uber'
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    from sourceSets.main.output
+    dependsOn configurations.runtimeClasspath
+    manifest {
+        attributes 'Main-Class': 'com.kevin.javafxdemo2.HelloApplicationKt'
+        attributes 'Multi-Release': 'true'
+    }
+    from {
+        configurations.runtimeClasspath.findAll { it.name.endsWith('jar') }.collect { zipTree(it) }
     }
 }
 
-jlinkZip {
-    group = 'distribution'
+task packageMyApp(type: PackageTask, dependsOn: fatJar) {
+
+    def currentPlatFormFlag = "mac"
+    def currentPlatform
+    if (currentPlatFormFlag == "window") {
+        currentPlatform = Platform.windows
+    } else {
+        currentPlatform = Platform.mac
+    }
+
+    appName = "KevinDemo"
+    displayName = "KevinDemo"
+    version = "1.0.0"
+    platform = currentPlatform
+    mainClass = 'com.kevin.javafxdemo2.HelloApplicationKt'
+    bundleJre = false
+    customizedJre = false
+    generateInstaller = true
+    vmArgs = ["-Dprism.maxvram=2g -XX:MaxGCPauseMillis=500 -Xms2g -XX:+AlwaysPreTouch"]
+    runnableJar = file("$buildDir/libs/JavaFXDemo2-1.0-SNAPSHOT-uber.jar")
+    copyDependencies = true
+    administratorRequired = false
+    winConfig {
+        generateSetup = true
+        generateMsi = true
+        disableDirPage = false
+        disableProgramGroupPage = false
+        disableFinishedPage = false
+        disableRunAfterInstall = false
+        exeCreationTool = WindowsExeCreationTool.winrun4j
+    }
+    macConfig {
+        appId = "com.mandirisekuritas.most.macos"
+        generateDmg = true
+        generatePkg = true
+        developerId = "Mandiri Sekuritas, PT (8YFZ2N3JSC)"
+    }
 }
